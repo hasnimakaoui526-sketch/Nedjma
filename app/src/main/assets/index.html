@@ -502,7 +502,7 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 </style>
 <div id="nedjmaOwnerOverlay" aria-hidden="true"><button id="nedjmaOwnerClose" type="button">إغلاق اللوحة الخاصة ✕</button><iframe id="nedjmaOwnerFrame" title="NEDJMA Imperial private owner preview" sandbox="allow-scripts allow-forms allow-same-origin"></iframe></div>
 <script>
-function show(id,btn){if(id==='owner'&&!window.__nedjmaIsOwner){toast('هذه المنطقة مخصصة للمالك فقط');return}const target=document.getElementById(id);if(!target)return;document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));target.classList.add('active');document.querySelector('.app').classList.toggle('gate-mode',id==='gate');document.querySelector('.app').classList.toggle('video-mode',id==='videos');document.body.classList.toggle('ned-video-active',id==='videos');if(id!=='videos')window.nedjmaVideosPause?.();document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');else{let map={home:0,explore:1,rooms:2,messages:3,profile:4};let b=document.querySelectorAll('.nav button')[map[id]];if(b)b.classList.add('active')}target.scrollTop=0;if(id==='gate')window.nedjmaSocial?.refreshGateFeed?.().catch(e=>console.warn('Gate feed:',e));if(id==='home')window.nedjmaSocial?.refreshStories?.().catch(e=>console.warn('Stories:',e));if(id==='videos')window.nedjmaVideosRefresh?.().catch(e=>console.warn('Videos:',e));if(id==='owner')window.nedjmaRooms?.loadOwnerManager?.().catch(e=>console.warn('Owner room manager:',e));}
+function show(id,btn){if(id==='owner'&&!window.__nedjmaIsOwner){toast('هذه المنطقة مخصصة للمالك فقط');return}const target=document.getElementById(id);if(!target)return;document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));target.classList.add('active');document.querySelector('.app').classList.toggle('gate-mode',id==='gate');document.querySelector('.app').classList.toggle('video-mode',id==='videos');document.body.classList.toggle('ned-video-active',id==='videos');if(id!=='videos')window.nedjmaVideosPause?.();document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');else{let map={home:0,explore:1,rooms:2,messages:3,profile:4};let b=document.querySelectorAll('.nav button')[map[id]];if(b)b.classList.add('active')}target.scrollTop=0;if(id==='gate')window.nedjmaSocial?.refreshGateFeed?.().catch(e=>console.warn('Gate feed:',e));if(id==='home')window.nedjmaSocial?.refreshStories?.().catch(e=>console.warn('Stories:',e));if(id==='videos'){const run=window.nedjmaVideosRefresh||window.nedjmaVideosRefreshFallback;if(typeof run==='function')Promise.resolve().then(run).catch(e=>console.error('Videos:',e));else{const feed=document.getElementById('ned-video-feed');if(feed)feed.textContent='تعذر تشغيل محمّل الفيديوهات. أعد فتح التطبيق.';}}if(id==='owner')window.nedjmaRooms?.loadOwnerManager?.().catch(e=>console.warn('Owner room manager:',e));}
 let gateMedia=null,gateMediaType=null,gateCurrentFilter='trending';
 function gateSelectMedia(input,type){const f=input.files&&input.files[0];if(!f)return;const max=type==='image'?15:100;if(f.size>max*1024*1024){toast('حجم الملف أكبر من '+max+' ميغابايت');input.value='';return}gateMedia=URL.createObjectURL(f);gateMediaType=type;document.getElementById('gateFileName').textContent=f.name;document.getElementById('gatePreview').innerHTML=type==='image'?'<img src="'+gateMedia+'" alt="معاينة الصورة">':'<video src="'+gateMedia+'" controls playsinline></video>'}
 function gatePublish(){const text=document.getElementById('gateText').value.trim();if(!text&&!gateMedia){toast('اكتب نصاً أو أضف صورة أو فيديو');return}const post=document.createElement('article');post.className='gate-post';post.dataset.kind=gateMedia?'media':'text';post.dataset.likes='0';const safe=document.createElement('p');safe.textContent=text;post.innerHTML='<div class="gate-post-head"><div class="mini">✦</div><div><b>عضو نجمة</b><small>نُشر الآن · بوابة نجمة</small></div></div>';if(text)post.appendChild(safe);if(gateMedia){const media=gateMediaType==='image'?document.createElement('img'):document.createElement('video');media.src=gateMedia;if(gateMediaType==='video'){media.controls=true;media.playsInline=true}post.appendChild(media)}const actions=document.createElement('div');actions.className='gate-post-actions';actions.innerHTML='<button onclick="gateLike(this)">♡ إعجاب <span class="like-count">0</span></button><button onclick="gateComment(this)">◌ تعليق</button><button onclick="toast(\'المشاركة متاحة بعد ربط الخادم\')">↗ مشاركة</button>';post.appendChild(actions);const comments=document.createElement('div');comments.className='gate-comments';post.appendChild(comments);document.getElementById('gateFeed').prepend(post);document.getElementById('gateText').value='';document.getElementById('gateImage').value='';document.getElementById('gateVideo').value='';document.getElementById('gateFileName').textContent='اختياري · صورة أو فيديو';document.getElementById('gatePreview').innerHTML='';gateMedia=null;gateMediaType=null;toast('ظهر المنشور في معاينة البوابة');gateFilter(gateCurrentFilter)}
@@ -947,4 +947,55 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 
 <!-- Preview-only build: service worker disabled to prevent stale/binary cached responses. -->
 
+
+<script id="nedjma-video-feed-recovery">
+(()=>{
+ const feed=()=>document.getElementById('ned-video-feed');
+ const client=()=>window.nedjmaData?.client;
+ const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
+ async function load(){
+  const box=feed();if(!box)return;
+  box.replaceChildren(node('p','ned-video-empty','جارٍ تحميل الفيديوهات…'));
+  const sb=client();if(!sb){box.replaceChildren(node('p','ned-video-empty','تعذر الاتصال بخدمة الفيديوهات. أعد تسجيل الدخول ثم حاول مجدداً.'));return;}
+  let timer;
+  try{
+   const query=sb.from('social_posts').select('id,author_id,body,media_path,created_at').eq('status','published').eq('media_type','video').not('media_path','is',null).order('created_at',{ascending:false}).limit(12);
+   const result=await Promise.race([query,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('انتهت مهلة الاتصال بخدمة الفيديوهات. تحقق من الإنترنت ثم أعد المحاولة.')),15000);})]);
+   clearTimeout(timer);
+   if(result.error)throw result.error;
+   const rows=result.data||[];
+   if(!rows.length){box.replaceChildren(node('p','ned-video-empty','لا توجد فيديوهات منشورة بعد.'));return;}
+   const ids=[...new Set(rows.map(x=>x.author_id).filter(Boolean))];
+   const paths=[...new Set(rows.map(x=>x.media_path).filter(Boolean))];
+   const [profiles,urls]=await Promise.all([
+    ids.length?sb.from('profiles').select('id,display_name,username').in('id',ids):Promise.resolve({data:[],error:null}),
+    paths.length?sb.storage.from('nedjma-social-media').createSignedUrls(paths,3600):Promise.resolve({data:[],error:null})
+   ]);
+   if(profiles.error)throw profiles.error;
+   if(urls.error)throw urls.error;
+   const names=new Map((profiles.data||[]).map(x=>[x.id,x.display_name||x.username||'عضو نجمة']));
+   const links=new Map((urls.data||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl]));
+   const fragment=document.createDocumentFragment();
+   let shown=0;
+   for(const row of rows){
+    const url=links.get(row.media_path);if(!url)continue;
+    const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
+    const video=node('video');video.src=url;video.playsInline=true;video.loop=true;video.muted=true;video.preload=shown===0?'metadata':'none';video.controls=true;video.setAttribute('aria-label','فيديو قصير');slide.append(video);
+    const meta=node('div','ned-video-meta');meta.append(node('div','ned-video-author',names.get(row.author_id)||'عضو نجمة'));if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
+    fragment.append(slide);shown++;
+   }
+   if(!shown){box.replaceChildren(node('p','ned-video-empty','تعذر إنشاء روابط تشغيل الفيديوهات. أعد المحاولة بعد قليل.'));return;}
+   box.replaceChildren(fragment);
+  }catch(error){
+   clearTimeout(timer);
+   console.error('NEDJMA video recovery:',error);
+   const msg=String(error?.message||'تعذر تحميل الفيديوهات حالياً.');
+   box.replaceChildren(node('p','ned-video-empty',msg));
+   const retry=node('button','ned-video-retry','إعادة المحاولة');retry.type='button';retry.addEventListener('click',load);box.append(retry);
+  }
+ }
+ window.nedjmaVideosRefreshFallback=load;
+ window.nedjmaVideosRefresh=load;
+})();
+</script>
 </body></html>
