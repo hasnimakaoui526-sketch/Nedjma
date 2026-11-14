@@ -839,7 +839,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
  const reactionRows=await social.listPostReactionStates(usableRows.map(x=>x.id)).catch(()=>[]);
  if(loadSeq!==nedVideoLoadSeq)return;
  const reactionMap=new Map(reactionRows.map(x=>[x.post_id,x]));
- for(const row of rows){
+ for(const row of usableRows){
   const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
   const v=node('video');v.src=row.media_url;v.playsInline=true;v.loop=true;v.muted=true;v.preload=players.length===0?'metadata':'none';v.setAttribute('aria-label','فيديو قصير');
   v.addEventListener('click',()=>{if(v.paused)v.play().catch(()=>{});else v.pause();});slide.append(v);
