@@ -699,7 +699,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 })();</script>
 
 <script id="nedjma-live-social-layer">
-window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId)return element;element.dataset.nedjmaProfileId=String(profileId);element.setAttribute('role','link');element.setAttribute('tabindex','0');element.setAttribute('aria-label','فتح الملف الشخصي');element.title='اضغط لفتح الملف الشخصي';element.style.cursor='pointer';element.style.pointerEvents='auto';return element;};
+window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId)return element;const id=String(profileId);element.dataset.nedjmaProfileId=id;element.setAttribute('role','link');element.setAttribute('tabindex','0');element.setAttribute('aria-label','فتح الملف الشخصي');element.title='اضغط لفتح الملف الشخصي';element.style.cursor='pointer';element.style.pointerEvents='auto';if(element.dataset.nedjmaProfileBound!=='1'){element.dataset.nedjmaProfileBound='1';const open=ev=>{ev.preventDefault();ev.stopPropagation();const fn=window.nedjmaOpenMemberProfile;if(typeof fn!=='function'){(window.toast||alert)('ميزة الملفات الشخصية غير جاهزة، أعد المحاولة.');return;}Promise.resolve(fn(element.dataset.nedjmaProfileId)).catch(err=>(window.toast||alert)(err?.message||'تعذر فتح الملف الشخصي'));};element.addEventListener('click',open);element.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){open(ev);}});}return element;};
 (()=>{
  const api=()=>window.nedjmaData?.client;
  const user=()=>window.nedjmaData?.currentUser?.();
