@@ -1058,7 +1058,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
    const sheet=document.getElementById('ned-video-upload-sheet');
    const say=m=>{if(status)status.textContent=m;};
    if(!file){say('اختر فيديو من جهازك أولاً.');return;}
-   if(!/^video\\/(mp4|webm)$/i.test(file.type)){say('الصيغة غير مدعومة. اختر MP4 أو WebM.');return;}
+   if(!/^video\/(mp4|webm)$/i.test(file.type)){say('الصيغة غير مدعومة. اختر MP4 أو WebM.');return;}
    if(file.size>100*1024*1024){say('حجم الفيديو يتجاوز الحد المسموح (100 ميغابايت).');return;}
    const social=window.nedjmaSocial;
    if(!social?.createPost){say('تعذر تشغيل خدمة النشر. أغلق التطبيق وافتحه مجدداً.');return;}
