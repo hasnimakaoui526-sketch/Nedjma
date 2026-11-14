@@ -976,16 +976,30 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
    const names=new Map((profiles.data||[]).map(x=>[x.id,x.display_name||x.username||'عضو نجمة']));
    const links=new Map((urls.data||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl]));
    const fragment=document.createDocumentFragment();
+   const players=[];
    let shown=0;
    for(const row of rows){
     const url=links.get(row.media_path);if(!url)continue;
     const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
-    const video=node('video');video.src=url;video.playsInline=true;video.loop=true;video.muted=true;video.preload=shown===0?'metadata':'none';video.controls=true;video.setAttribute('aria-label','فيديو قصير');slide.append(video);
+    const video=node('video');video.src=url;video.autoplay=true;video.playsInline=true;video.loop=true;video.muted=true;video.preload=shown===0?'auto':'metadata';video.controls=true;video.setAttribute('autoplay','');video.setAttribute('muted','');video.setAttribute('playsinline','');video.setAttribute('aria-label','فيديو قصير');video.addEventListener('click',()=>{if(video.paused)video.play().catch(()=>{});else video.pause();});slide.append(video);
     const meta=node('div','ned-video-meta');meta.append(node('div','ned-video-author',names.get(row.author_id)||'عضو نجمة'));if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
-    fragment.append(slide);shown++;
+    fragment.append(slide);players.push(video);shown++;
    }
    if(!shown){box.replaceChildren(node('p','ned-video-empty','تعذر إنشاء روابط تشغيل الفيديوهات. أعد المحاولة بعد قليل.'));return;}
    box.replaceChildren(fragment);
+   if(window.nedjmaVideoAutoObserver)window.nedjmaVideoAutoObserver.disconnect();
+   if('IntersectionObserver' in window){
+    window.nedjmaVideoAutoObserver=new IntersectionObserver(entries=>{
+     for(const entry of entries){
+      const video=entry.target.querySelector('video');if(!video)continue;
+      if(entry.isIntersecting&&entry.intersectionRatio>=0.65){
+       players.forEach(other=>{if(other!==video)other.pause();});
+       video.play().catch(()=>{});
+      }else video.pause();
+     }
+    },{root:box,threshold:[0,0.25,0.65,1]});
+    box.querySelectorAll('.ned-video-slide').forEach(slide=>window.nedjmaVideoAutoObserver.observe(slide));
+   }else if(players[0])players[0].play().catch(()=>{});
   }catch(error){
    clearTimeout(timer);
    console.error('NEDJMA video recovery:',error);
