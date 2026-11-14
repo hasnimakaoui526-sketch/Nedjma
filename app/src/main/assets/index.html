@@ -703,6 +703,7 @@ window.nedjmaMakeProfileLink=function(element,profileId){
  if(!element||profileId==null||String(profileId)==='')return element;
  const id=String(profileId);
  element.dataset.nedjmaProfileId=id;
+ element.dataset.nedjmaProfileBound='1';
  element.setAttribute('role','link');
  element.setAttribute('tabindex','0');
  element.setAttribute('aria-label','فتح الملف الشخصي');
@@ -726,6 +727,26 @@ window.nedjmaMakeProfileLink=function(element,profileId){
  element.addEventListener('keydown',activate);
  return element;
 };
+ // Fallback for profile links rendered as static HTML (for example owner delegation search).
+ // Elements wired by nedjmaMakeProfileLink handle their own event and stop bubbling.
+ const activateUnboundProfile=e=>{
+  if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
+  const target=e.target instanceof Element?e.target:e.target?.parentElement;
+  const link=target?.closest?.('[data-nedjma-profile-id]:not([data-nedjma-profile-bound])');
+  if(!link)return;
+  if(e.type==='keydown')e.preventDefault();
+  e.preventDefault();e.stopPropagation();
+  const id=link.dataset.nedjmaProfileId;
+  const open=window.nedjmaOpenMemberProfile;
+  if(typeof open!=='function'){(window.toast||alert)('الملف الشخصي لم يجهز بعد.');return;}
+  Promise.resolve(open(id)).catch(error=>{
+   console.error('NEDJMA delegated profile open failed:',error);
+   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
+  });
+ };
+ document.addEventListener('click',activateUnboundProfile);
+ document.addEventListener('keydown',activateUnboundProfile);
+
 (()=>{
  const api=()=>window.nedjmaData?.client;
  const user=()=>window.nedjmaData?.currentUser?.();
