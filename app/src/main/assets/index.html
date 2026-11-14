@@ -699,60 +699,59 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 })();</script>
 
 <script id="nedjma-live-social-layer">
+// Profile links use a direct target listener so parent cards/rows cannot swallow taps.
+const activateNedjmaProfile=(e,profileId)=>{
+ if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
+ e.preventDefault();
+ e.stopPropagation();
+ const open=window.nedjmaOpenMemberProfile;
+ if(typeof open!=='function'){
+  console.error('NEDJMA profile opener is unavailable.');
+  if(window.toast)window.toast('ملف الحساب قيد التجهيز، حاول مرة أخرى.');
+  return;
+ }
+ try{
+  const result=open(String(profileId||'').trim());
+  if(result&&typeof result.catch==='function')result.catch(error=>{
+   console.error('NEDJMA profile open failed:',error);
+   if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
+  });
+ }catch(error){
+  console.error('NEDJMA profile open failed:',error);
+  if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
+ }
+};
 window.nedjmaMakeProfileLink=function(element,profileId){
- if(!element||profileId==null||String(profileId)==='')return element;
- element.dataset.nedjmaProfileId=String(profileId);
+ if(!element||profileId==null||String(profileId).trim()==='')return element;
+ const id=String(profileId).trim();
+ element.dataset.nedjmaProfileId=id;
  element.setAttribute('role','link');
  element.setAttribute('tabindex','0');
  element.setAttribute('aria-label','فتح الملف الشخصي');
  element.title='اضغط لفتح الملف الشخصي';
  element.style.cursor='pointer';
  element.style.pointerEvents='auto';
+ if(element.dataset.nedjmaProfileBound!=='1'){
+  element.dataset.nedjmaProfileBound='1';
+  element.addEventListener('click',e=>activateNedjmaProfile(e,element.dataset.nedjmaProfileId));
+  element.addEventListener('keydown',e=>activateNedjmaProfile(e,element.dataset.nedjmaProfileId));
+ }
  return element;
 };
-// Unified activation for Android WebView touch/pointer, mouse and keyboard.
-let lastProfileTapId='',lastProfileTapAt=0;
-const activateProfile=e=>{
- if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
- const path=typeof e.composedPath==='function'?e.composedPath():[];
- let link=path.find(el=>el instanceof Element&&el.matches?.('[data-nedjma-profile-id]'));
- if(!link){
-  const target=e.target instanceof Element?e.target:e.target?.parentElement;
-  link=target?.closest?.('[data-nedjma-profile-id]');
- }
- if(!link)return;
- const profileId=String(link.dataset.nedjmaProfileId||'').trim();
- if(!profileId)return;
- const now=Date.now();
- if(profileId===lastProfileTapId&&now-lastProfileTapAt<550){
-  e.preventDefault();e.stopPropagation();
-  if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
-  return;
- }
- lastProfileTapId=profileId;lastProfileTapAt=now;
- e.preventDefault();e.stopPropagation();
- if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
- const open=window.nedjmaOpenMemberProfile;
- if(typeof open!=='function'){
-  console.error('NEDJMA profile opener is unavailable at tap time.');
-  (window.toast||alert)('تعذر تشغيل الملف الشخصي. أعد المحاولة بعد لحظة.');
-  return;
- }
- try{
-  const result=open(profileId);
-  if(result&&typeof result.catch==='function')result.catch(error=>{
-   console.error('NEDJMA profile activation failed:',error);
-   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
-  });
- }catch(error){
-  console.error('NEDJMA profile activation failed:',error);
-  (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
- }
-};
-document.addEventListener('pointerup',activateProfile,true);
-document.addEventListener('touchend',activateProfile,{capture:true,passive:false});
-document.addEventListener('click',activateProfile,true);
-document.addEventListener('keydown',activateProfile,true);
+// Fallback for profile-name markup created directly with innerHTML (not through the helper).
+document.addEventListener('click',e=>{
+ const target=e.target instanceof Element?e.target:e.target?.parentElement;
+ const link=target?.closest?.('[data-nedjma-profile-id]');
+ if(!link||link.dataset.nedjmaProfileBound==='1')return;
+ activateNedjmaProfile(e,link.dataset.nedjmaProfileId);
+});
+document.addEventListener('keydown',e=>{
+ if(e.key!=='Enter'&&e.key!==' ')return;
+ const target=e.target instanceof Element?e.target:e.target?.parentElement;
+ const link=target?.closest?.('[data-nedjma-profile-id]');
+ if(!link||link.dataset.nedjmaProfileBound==='1')return;
+ activateNedjmaProfile(e,link.dataset.nedjmaProfileId);
+});
 
 (()=>{
  const api=()=>window.nedjmaData?.client;
