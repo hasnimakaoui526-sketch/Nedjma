@@ -699,7 +699,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 })();</script>
 
 <script id="nedjma-live-social-layer">
-// NEDJMA profile feature — rebuilt with a direct click handler on each name.
+// NEDJMA profile activation — one capture-phase handler for every current and future member name.
 window.nedjmaMakeProfileLink=function(element,profileId){
  if(!element||profileId==null||String(profileId).trim()==='')return element;
  const id=String(profileId).trim();
@@ -710,33 +710,29 @@ window.nedjmaMakeProfileLink=function(element,profileId){
  element.title='اضغط لفتح الملف الشخصي';
  element.style.cursor='pointer';
  element.style.pointerEvents='auto';
- element.onclick=function(e){
-  e.preventDefault();
-  e.stopPropagation();
-  window.nedjmaOpenMemberProfile(id).catch(error=>{
-   console.error('NEDJMA profile:',error);
-   if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
-  });
- };
+ // Do not attach click handlers to nested names: a single document capture handler
+ // prevents parent cards/buttons from swallowing the profile action.
  element.onkeydown=function(e){
   if(e.key==='Enter'||e.key===' '){
-   e.preventDefault();
-   e.stopPropagation();
-   element.click();
+   e.preventDefault();e.stopPropagation();
+   const open=window.nedjmaOpenMemberProfile;
+   if(typeof open==='function')Promise.resolve(open(id)).catch(showProfileOpenError);
   }
  };
  return element;
 };
-// One fallback only for legacy profile names inserted as raw HTML.
+function showProfileOpenError(error){
+ console.error('NEDJMA profile:',error);
+ if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
+}
 document.addEventListener('click',function(e){
  const target=e.target instanceof Element?e.target:e.target?.parentElement;
  const link=target?.closest?.('[data-nedjma-profile-id]');
- if(!link||link.onclick)return;
- e.preventDefault();e.stopPropagation();
- window.nedjmaOpenMemberProfile(link.dataset.nedjmaProfileId).catch(error=>{
-  console.error('NEDJMA profile:',error);
-  if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
- });
+ if(!link)return;
+ e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+ const open=window.nedjmaOpenMemberProfile;
+ if(typeof open!=='function'){showProfileOpenError(new Error('ميزة الملف الشخصي لم تكتمل أثناء تحميل التطبيق.'));return;}
+ Promise.resolve(open(link.dataset.nedjmaProfileId)).catch(showProfileOpenError);
 },true);
 (()=>{
  const api=()=>window.nedjmaData?.client;
