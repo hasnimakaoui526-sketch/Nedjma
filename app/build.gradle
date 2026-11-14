@@ -1,0 +1,16 @@
+plugins { id 'com.android.application' }
+
+def releaseStorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def releaseSigningReady = [releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.trim().isEmpty() }
+
+android {
+    namespace 'com.nedjma.app'
+    compileSdk 35
+    defaultConfig { applicationId 'com.nedjma.app'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0.0' }
+    signingConfigs { release { if (releaseSigningReady) { storeFile file(releaseStorePath); storePassword releaseStorePassword; keyAlias releaseKeyAlias; keyPassword releaseKeyPassword } } }
+    buildTypes { debug { applicationIdSuffix '.debug'; versionNameSuffix '-debug' }; release { minifyEnabled false; if (releaseSigningReady) signingConfig signingConfigs.release } }
+}
+if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') } && !releaseSigningReady) throw new GradleException('Release signing secrets are required.')
