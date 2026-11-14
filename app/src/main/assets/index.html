@@ -751,7 +751,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
   const box=document.getElementById('confessionList');if(!box)return;
   const rows=await social.listConfessions();box.replaceChildren();
   if(!rows.length){box.append(node('p','anon-note','لا توجد اعترافات بعد.'));return;}
-  for(const row of usableRows){
+  for(const row of rows){
    const card=node('article','confession-card');card.dataset.confessionId=row.id;
    const meta=node('div','confession-card-meta');
    meta.append(node('span','','♙ مجهول'),node('small','','◷ '+new Date(row.created_at).toLocaleDateString('ar')));
