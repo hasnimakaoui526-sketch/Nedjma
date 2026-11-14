@@ -618,7 +618,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
   let req=supa.from('profiles').select('id,username,display_name').order('created_at',{ascending:false}).limit(30);
   if(/^[0-9a-f-]{30,}$/i.test(q))req=req.eq('id',q);else req=req.or('display_name.ilike.%'+q+'%,username.ilike.%'+q+'%');
   const {data,error}=await req;if(error)throw error;const rows=(data||[]).filter(x=>x.id!==currentUser.id&&x.id!==activeRankDelegation.owner_id);
-  box.innerHTML=rows.length?rows.map(x=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #33291a"><span data-nedjma-profile-id="'+safeText(x.id)+'" role="link" tabindex="0" style="cursor:pointer">'+safeText(x.display_name||x.username||'عضو')+'<small style="display:block;color:#a99b7e">'+safeText(x.username||x.id.slice(0,8))+'</small></span><button data-delegate-target="'+safeText(x.id)+'" style="background:#21190e;color:#efd69a;border:1px solid #6b5129;border-radius:8px;padding:7px 10px">اختيار</button></div>').join(''):'لم يتم العثور على مستخدم.';
+  box.innerHTML=rows.length?rows.map(x=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #33291a"><span data-member-profile="'+safeText(x.id)+'" style="cursor:pointer">'+safeText(x.display_name||x.username||'عضو')+'<small style="display:block;color:#a99b7e">'+safeText(x.username||x.id.slice(0,8))+'</small></span><button data-delegate-target="'+safeText(x.id)+'" style="background:#21190e;color:#efd69a;border:1px solid #6b5129;border-radius:8px;padding:7px 10px">اختيار</button></div>').join(''):'لم يتم العثور على مستخدم.';box.querySelectorAll('[data-member-profile]').forEach(el=>window.nedjmaMakeProfileLink(el,el.getAttribute('data-member-profile')));
   box.querySelectorAll('[data-delegate-target]').forEach(b=>b.onclick=()=>{delegatedTarget=rows.find(x=>x.id===b.dataset.delegateTarget);document.getElementById('ned-delegate-selected').textContent='المحدد: '+(delegatedTarget.display_name||delegatedTarget.username||delegatedTarget.id);delegatedStatus('');});
  }
  async function delegateRankAction(action){
@@ -699,60 +699,45 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 })();</script>
 
 <script id="nedjma-live-social-layer">
-// Profile links use a direct target listener so parent cards/rows cannot swallow taps.
-const activateNedjmaProfile=(e,profileId)=>{
- if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
- e.preventDefault();
- e.stopPropagation();
- const open=window.nedjmaOpenMemberProfile;
- if(typeof open!=='function'){
-  console.error('NEDJMA profile opener is unavailable.');
-  if(window.toast)window.toast('ملف الحساب قيد التجهيز، حاول مرة أخرى.');
-  return;
- }
- try{
-  const result=open(String(profileId||'').trim());
-  if(result&&typeof result.catch==='function')result.catch(error=>{
-   console.error('NEDJMA profile open failed:',error);
-   if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
-  });
- }catch(error){
-  console.error('NEDJMA profile open failed:',error);
-  if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
- }
-};
+// NEDJMA profile feature — rebuilt with a direct click handler on each name.
 window.nedjmaMakeProfileLink=function(element,profileId){
  if(!element||profileId==null||String(profileId).trim()==='')return element;
  const id=String(profileId).trim();
  element.dataset.nedjmaProfileId=id;
- element.setAttribute('role','link');
+ element.setAttribute('role','button');
  element.setAttribute('tabindex','0');
  element.setAttribute('aria-label','فتح الملف الشخصي');
  element.title='اضغط لفتح الملف الشخصي';
  element.style.cursor='pointer';
  element.style.pointerEvents='auto';
- if(element.dataset.nedjmaProfileBound!=='1'){
-  element.dataset.nedjmaProfileBound='1';
-  element.addEventListener('click',e=>activateNedjmaProfile(e,element.dataset.nedjmaProfileId));
-  element.addEventListener('keydown',e=>activateNedjmaProfile(e,element.dataset.nedjmaProfileId));
- }
+ element.onclick=function(e){
+  e.preventDefault();
+  e.stopPropagation();
+  window.nedjmaOpenMemberProfile(id).catch(error=>{
+   console.error('NEDJMA profile:',error);
+   if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
+  });
+ };
+ element.onkeydown=function(e){
+  if(e.key==='Enter'||e.key===' '){
+   e.preventDefault();
+   e.stopPropagation();
+   element.click();
+  }
+ };
  return element;
 };
-// Fallback for profile-name markup created directly with innerHTML (not through the helper).
-document.addEventListener('click',e=>{
+// One fallback only for legacy profile names inserted as raw HTML.
+document.addEventListener('click',function(e){
  const target=e.target instanceof Element?e.target:e.target?.parentElement;
  const link=target?.closest?.('[data-nedjma-profile-id]');
- if(!link||link.dataset.nedjmaProfileBound==='1')return;
- activateNedjmaProfile(e,link.dataset.nedjmaProfileId);
-});
-document.addEventListener('keydown',e=>{
- if(e.key!=='Enter'&&e.key!==' ')return;
- const target=e.target instanceof Element?e.target:e.target?.parentElement;
- const link=target?.closest?.('[data-nedjma-profile-id]');
- if(!link||link.dataset.nedjmaProfileBound==='1')return;
- activateNedjmaProfile(e,link.dataset.nedjmaProfileId);
-});
-
+ if(!link||link.onclick)return;
+ e.preventDefault();e.stopPropagation();
+ window.nedjmaOpenMemberProfile(link.dataset.nedjmaProfileId).catch(error=>{
+  console.error('NEDJMA profile:',error);
+  if(window.toast)window.toast(error?.message||'تعذر فتح الملف الشخصي');
+ });
+},true);
 (()=>{
  const api=()=>window.nedjmaData?.client;
  const user=()=>window.nedjmaData?.currentUser?.();
@@ -901,7 +886,7 @@ document.addEventListener('keydown',e=>{
   const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
   const v=node('video');v.src=row.media_url;v.playsInline=true;v.loop=true;v.muted=true;v.preload=players.length===0?'metadata':'none';v.setAttribute('aria-label','فيديو قصير');
   v.addEventListener('click',()=>{if(v.paused)v.play().catch(()=>{});else v.pause();});slide.append(v);
-  const meta=node('div','ned-video-meta');const author=node('div','ned-video-author',row.author_name||'عضو نجمة');author.setAttribute('role','button');author.setAttribute('tabindex','0');author.setAttribute('aria-label','فتح حساب '+(row.author_name||'ناشر الفيديو'));author.title='اضغط لفتح حساب الناشر';author.style.cursor='pointer';const openAuthor=()=>{const open=window.nedjmaOpenMemberProfile;if(typeof open!=='function'){toastSafe('ملف الحساب غير جاهز، حاول مرة أخرى.');return;}Promise.resolve(open(row.author_id)).catch(e=>toastSafe(e.message||'تعذر فتح الحساب'));};author.addEventListener('click',e=>{e.stopPropagation();openAuthor();});author.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openAuthor();}});meta.append(author);if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
+  const meta=node('div','ned-video-meta');const author=node('div','ned-video-author',row.author_name||'عضو نجمة');window.nedjmaMakeProfileLink(author,row.author_id);meta.append(author);if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
   const side=node('div','ned-video-side');
   const like=node('button','ned-video-like','♡');like.type='button';like.setAttribute('aria-label','إعجاب بالفيديو');const likeCount=node('small','','0');like.append(likeCount);
   const initialState=reactionMap.get(row.id)||{count:0,liked:false};likeCount.textContent=String(initialState.count);if(initialState.liked){like.classList.add('is-liked');like.firstChild.textContent='♥';}
@@ -964,54 +949,70 @@ document.addEventListener('keydown',e=>{
  window.nedjmaSocial.refreshStories=refreshStories;
  document.getElementById('ned-profile-save')?.addEventListener('click',async()=>{const status=document.getElementById('ned-profile-status'),button=document.getElementById('ned-profile-save'),display_name=document.getElementById('ned-profile-display-name').value.trim(),username=document.getElementById('ned-profile-username').value.trim().toLowerCase(),bio=document.getElementById('ned-profile-bio').value.trim(),file=document.getElementById('ned-profile-avatar-file').files?.[0];if(display_name.length<2){status.textContent='الاسم الظاهر يجب أن يتكون من حرفين على الأقل.';return;}if(username&&!/^[a-z0-9_]{3,24}$/.test(username)){status.textContent='اسم المستخدم: 3–24 حرفاً إنجليزياً أو رقماً أو _.';return;}if(bio.length>160){status.textContent='النبذة أطول من 160 حرفاً.';return;}button.disabled=true;status.textContent='جارٍ الحفظ…';try{let avatar_url; if(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('نوع الصورة غير مدعوم.');avatar_url=await window.nedjmaData.uploadAvatar(file);}const patch={display_name,username:username||null,bio};if(avatar_url)patch.avatar_url=avatar_url;const {error}=await api().from('profiles').update(patch).eq('id',me());if(error)throw error;await window.loadNedjmaProfile?.();document.getElementById('ned-profile-avatar-file').value='';status.textContent='تم حفظ الملف الشخصي.';}catch(e){status.textContent=e.message;}finally{button.disabled=false;}});
  async function openMemberProfile(profileId){
-  if(!profileId)throw new Error('تعذر تحديد حساب هذا المستخدم.');
-  const requestId=String(profileId);
-  let modal=document.getElementById('ned-notification-profile');
-  if(!modal){modal=node('div');modal.id='ned-notification-profile';modal.style.cssText='position:fixed;inset:0;z-index:2147483000;background:#050505f5;display:flex;align-items:center;justify-content:center;padding:18px;';const sheet=node('div','card');sheet.id='ned-notification-profile-sheet';sheet.style.cssText='width:min(100%,440px);max-height:85vh;overflow:auto;background:#12100c;border:1px solid #806333;border-radius:22px;padding:20px;text-align:center;color:#f2dfb8;';modal.append(sheet);modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});document.body.append(modal);}
-  modal.hidden=false;modal.style.display='flex';modal.dataset.profileRequest=requestId;
-  const sheet=modal.querySelector('#ned-notification-profile-sheet');sheet.replaceChildren();
-  const close=node('button','ghost','إغلاق ✕');close.type='button';close.style.cssText='display:block;margin-right:auto;width:auto';close.onclick=()=>modal.remove();sheet.append(close,node('p','','جارٍ تحميل الملف الشخصي…'));
-  const {data:profile,error}=await api().from('profiles').select('id,username,display_name,avatar_url,bio').eq('id',requestId).maybeSingle();
-  if(modal.dataset.profileRequest!==requestId||!modal.isConnected)return;
-  if(error)throw error;if(!profile)throw new Error('لم يتم العثور على الملف الشخصي لهذا الحساب.');
-  sheet.replaceChildren(close);
-  const avatar=node('div','avatar');avatar.style.cssText='width:104px;height:104px;margin:14px auto;border:2px solid #d7b46a;border-radius:50%;overflow:hidden;background:#241b0e;box-shadow:0 0 24px #d7b46a33;';
-  if(profile.avatar_url){const img=node('img');img.src=profile.avatar_url;img.alt='الصورة الشخصية';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';avatar.replaceChildren(img);}else{avatar.style.display='grid';avatar.style.placeItems='center';avatar.style.color='#f3dfaa';avatar.style.fontSize='38px';avatar.textContent='✦';}
-  const name=node('h2','',profile.display_name||profile.username||'عضو نجمة');name.style.cssText='margin:8px 0 3px;color:#f5dfaa;font-size:22px;';
-  const username=node('p','',profile.username?'@'+profile.username:'عضو في نجمة');username.style.cssText='margin:0;color:#bca77c;font-size:13px;direction:ltr;';
-  sheet.append(avatar,name,username);
-  let rank='member';
-  try{const {data:role}=await api().from('user_roles').select('platform_rank').eq('user_id',profile.id).maybeSingle();if(role?.platform_rank)rank=role.platform_rank;}catch(e){console.warn('Profile rank unavailable:',e);}
-  if(modal.dataset.profileRequest!==requestId||!modal.isConnected)return;
+  const id=String(profileId||'').trim();
+  if(!id)throw new Error('لم يتم تحديد صاحب هذا الاسم.');
+  const db=api();
+  if(!db)throw new Error('خدمة الحسابات غير متاحة حالياً.');
+  const current=me();
+  let modal=document.getElementById('nedjma-member-profile');
+  if(!modal){
+   modal=document.createElement('div');
+   modal.id='nedjma-member-profile';
+   modal.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.88);';
+   const panel=document.createElement('section');
+   panel.id='nedjma-member-profile-panel';
+   panel.style.cssText='width:min(100%,430px);max-height:85vh;overflow:auto;box-sizing:border-box;padding:22px;border:1px solid #b58a42;border-radius:22px;background:#11100d;color:#f4dfb0;text-align:center;box-shadow:0 18px 70px #000;';
+   modal.append(panel);
+   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+   document.body.append(modal);
+  }
+  modal.dataset.profileId=id;
+  modal.hidden=false;
+  modal.style.display='flex';
+  const panel=modal.querySelector('#nedjma-member-profile-panel');
+  panel.replaceChildren();
+  const close=document.createElement('button');
+  close.type='button';close.textContent='إغلاق ✕';
+  close.style.cssText='display:block;margin:0 0 12px auto;width:auto;padding:8px 13px;border:1px solid #806333;border-radius:10px;background:#21190e;color:#f4dfb0;';
+  close.onclick=()=>modal.remove();
+  const loading=document.createElement('p');loading.textContent='جارٍ تحميل الملف الشخصي…';
+  panel.append(close,loading);
+  const {data:profile,error}=await db.from('profiles').select('id,username,display_name,avatar_url,bio').eq('id',id).maybeSingle();
+  if(error)throw error;
+  if(!profile)throw new Error('لم يتم العثور على الملف الشخصي لهذا العضو.');
+  if(!modal.isConnected||modal.dataset.profileId!==id)return;
+  panel.replaceChildren(close);
+  const avatar=document.createElement('div');
+  avatar.style.cssText='width:104px;height:104px;margin:12px auto;border:2px solid #d7b46a;border-radius:50%;overflow:hidden;background:#241b0e;display:grid;place-items:center;color:#f3dfaa;font-size:38px;';
+  if(profile.avatar_url){const image=document.createElement('img');image.src=profile.avatar_url;image.alt='الصورة الشخصية';image.style.cssText='width:100%;height:100%;object-fit:cover';avatar.append(image);}else avatar.textContent='✦';
+  const name=document.createElement('h2');name.textContent=profile.display_name||profile.username||'عضو نجمة';name.style.cssText='margin:8px 0;color:#f5dfaa;font-size:22px;';
+  const username=document.createElement('p');username.textContent=profile.username?'@'+profile.username:'عضو في نجمة';username.style.cssText='margin:0;color:#bca77c;font-size:13px;direction:ltr;';
+  panel.append(avatar,name,username);
+  if(profile.bio){const bio=document.createElement('p');bio.textContent=profile.bio;bio.style.cssText='margin:12px 0;color:#d4c8ae;line-height:1.8';panel.append(bio);}
+  let rank='عضو';
+  const roleResult=await db.from('user_roles').select('platform_rank').eq('user_id',id).maybeSingle();
+  if(roleResult.error)console.warn('Profile rank:',roleResult.error);
+  else if(roleResult.data?.platform_rank)rank=roleResult.data.platform_rank;
+  if(!modal.isConnected||modal.dataset.profileId!==id)return;
   const rankNames={new:'عضو جديد',member:'عضو',special:'عضو مميز',moderator:'مشرف',manager:'مدير',owner:'مالك التطبيق',rank_1:'الرتبة 1',rank_2:'الرتبة 2',rank_3:'الرتبة 3',rank_4:'الرتبة 4',rank_5:'الرتبة 5',rank_6:'الرتبة 6',rank_7:'الرتبة 7',rank_8:'الرتبة 8',rank_9:'الرتبة 9',rank_10:'الرتبة 10',premium:'Premium',vip:'VIP',vip_gold:'VIP Gold',vip_diamond:'VIP Diamond',admin:'Admin',super_admin:'Super Admin',super_owner:'Super Owner'};
-  const rankBadge=node('div','', '✦ '+(rankNames[rank]||rank));rankBadge.style.cssText='display:inline-block;margin:10px auto 4px;padding:8px 18px;border:1px solid #a9823c;border-radius:30px;background:linear-gradient(120deg,#352612,#17120b);color:#f3d995;font-size:13px;font-weight:800;';sheet.append(rankBadge);
-  if(profile.bio){const bio=node('p','',profile.bio);bio.style.cssText='margin:12px 0;color:#d4c8ae;line-height:1.8;font-size:13px;';sheet.append(bio);}
-  const actions=node('div');actions.style.cssText='display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:20px';
-  if(profile.id!==me()){
-   const friend=node('button','goldbtn','＋ طلب صداقة');friend.type='button';friend.style.cssText='width:auto;min-width:145px;';
-   const message=node('button','goldbtn','✉ إرسال رسالة');message.type='button';message.style.cssText='width:auto;min-width:145px;';
-   actions.append(friend,message);sheet.append(actions);
-   const uid=me();
-   if(!uid){friend.disabled=true;friend.textContent='سجّل الدخول لإضافة صديق';}
-   else{
-    const [outgoingResult,incomingResult]=await Promise.all([
-     api().from('friend_requests').select('id,status').eq('requester_id',uid).eq('addressee_id',profile.id).maybeSingle(),
-     api().from('friend_requests').select('id,status').eq('requester_id',profile.id).eq('addressee_id',uid).maybeSingle()
-    ]);
-    if(outgoingResult.error)throw outgoingResult.error;if(incomingResult.error)throw incomingResult.error;
-    const outgoing=outgoingResult.data,incoming=incomingResult.data;
-    if(outgoing?.status==='accepted'||incoming?.status==='accepted'){friend.textContent='✓ أنتما صديقان';friend.disabled=true;}
-    else if(incoming?.status==='pending'){
-     friend.textContent='قبول طلب الصداقة';
-     friend.onclick=async()=>{friend.disabled=true;try{const {error}=await api().from('friend_requests').update({status:'accepted',updated_at:new Date().toISOString()}).eq('id',incoming.id);if(error)throw error;friend.textContent='✓ أنتما صديقان';toastSafe('تم قبول طلب الصداقة');}catch(e){toastSafe(e.message||'تعذر قبول الطلب');friend.disabled=false;}};
-     const decline=node('button','ghost','رفض الطلب');decline.type='button';decline.style.cssText='width:auto;';decline.onclick=async()=>{decline.disabled=true;try{const {error}=await api().from('friend_requests').update({status:'declined',updated_at:new Date().toISOString()}).eq('id',incoming.id);if(error)throw error;friend.textContent='طلب الصداقة مرفوض';friend.disabled=true;decline.remove();}catch(e){toastSafe(e.message);decline.disabled=false;}};actions.append(decline);
-    }else if(outgoing?.status==='pending'){friend.textContent='✓ تم إرسال طلب الصداقة';friend.disabled=true;}
-    else{
-     friend.onclick=async()=>{friend.disabled=true;try{if(outgoing?.status==='declined'){const {error}=await api().from('friend_requests').update({status:'pending',updated_at:new Date().toISOString()}).eq('id',outgoing.id);if(error)throw error;}else{const {error}=await api().from('friend_requests').insert({requester_id:uid,addressee_id:profile.id,status:'pending'});if(error)throw error;}friend.textContent='✓ تم إرسال طلب الصداقة';toastSafe('تم إرسال طلب الصداقة');}catch(e){toastSafe(e.message||'تعذر إرسال طلب الصداقة');friend.disabled=false;}};
-    }
-   }
-   message.onclick=async()=>{message.disabled=true;try{const c=await messaging.getOrCreateDirect(profile.id);modal.remove();show('messages');await openDirectChat(c.id,profile.display_name||profile.username||'محادثة');}catch(e){toastSafe(e.message||'تعذر إرسال الرسالة');}finally{message.disabled=false;}};
-  }else{sheet.append(node('p','','هذا ملفك الشخصي'));}
+  const badge=document.createElement('div');badge.textContent='✦ '+(rankNames[rank]||rank);badge.style.cssText='display:inline-block;margin:10px auto;padding:8px 18px;border:1px solid #a9823c;border-radius:30px;background:#2b2010;color:#f3d995;font-weight:800;';panel.append(badge);
+  if(id===current){const own=document.createElement('p');own.textContent='هذا ملفك الشخصي';panel.append(own);return;}
+  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:18px;';
+  const friend=document.createElement('button');friend.type='button';friend.textContent='＋ طلب صداقة';friend.className='goldbtn';friend.style.width='auto';
+  const message=document.createElement('button');message.type='button';message.textContent='✉ إرسال رسالة';message.className='goldbtn';message.style.width='auto';
+  actions.append(friend,message);panel.append(actions);
+  const [outgoingResult,incomingResult]=await Promise.all([
+   db.from('friend_requests').select('id,status').eq('requester_id',current).eq('addressee_id',id).maybeSingle(),
+   db.from('friend_requests').select('id,status').eq('requester_id',id).eq('addressee_id',current).maybeSingle()
+  ]);
+  if(outgoingResult.error)throw outgoingResult.error;
+  if(incomingResult.error)throw incomingResult.error;
+  const outgoing=outgoingResult.data,incoming=incomingResult.data;
+  if(outgoing?.status==='accepted'||incoming?.status==='accepted'){friend.textContent='✓ أنتما صديقان';friend.disabled=true;}
+  else if(outgoing?.status==='pending'){friend.textContent='✓ تم إرسال طلب الصداقة';friend.disabled=true;}
+  else if(incoming?.status==='pending'){friend.textContent='قبول طلب الصداقة';friend.onclick=async()=>{friend.disabled=true;try{const {error}=await db.from('friend_requests').update({status:'accepted',updated_at:new Date().toISOString()}).eq('id',incoming.id);if(error)throw error;friend.textContent='✓ أنتما صديقان';}catch(e){friend.disabled=false;if(window.toast)window.toast(e.message);}};}
+  else{friend.onclick=async()=>{friend.disabled=true;try{const result=outgoing?.status==='declined'?await db.from('friend_requests').update({status:'pending',updated_at:new Date().toISOString()}).eq('id',outgoing.id):await db.from('friend_requests').insert({requester_id:current,addressee_id:id,status:'pending'});if(result.error)throw result.error;friend.textContent='✓ تم إرسال طلب الصداقة';}catch(e){friend.disabled=false;if(window.toast)window.toast(e.message||'تعذر إرسال طلب الصداقة');}};}
+  message.onclick=async()=>{message.disabled=true;try{const conversation=await messaging.getOrCreateDirect(id);modal.remove();show('messages');await openDirectChat(conversation.id,profile.display_name||profile.username||'محادثة');}catch(e){if(window.toast)window.toast(e.message||'تعذر بدء المحادثة');}finally{message.disabled=false;}};
  }
  window.nedjmaOpenMemberProfile=openMemberProfile;
  // Profile activation is delegated once, before dynamic social views are rendered.
