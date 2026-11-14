@@ -961,7 +961,7 @@ window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId
   }else{sheet.append(node('p','','هذا ملفك الشخصي'));}
  }
  window.nedjmaOpenMemberProfile=openMemberProfile;
- const openProfileFromEvent=e=>{const origin=e.target instanceof Element?e.target:e.target?.parentElement;const target=origin?.closest?.('[data-nedjma-profile-id]');if(!target)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();openMemberProfile(target.dataset.nedjmaProfileId).catch(err=>toastSafe(err?.message||'تعذر فتح الملف الشخصي'));};
+ const openProfileFromEvent=e=>{const raw=e.target;const origin=raw instanceof Element?raw:(raw?.parentElement||raw?.parentNode);const target=origin?.closest?.('[data-nedjma-profile-id]');if(!target)return;const profileId=target.dataset?.nedjmaProfileId;if(!profileId)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();Promise.resolve(window.nedjmaOpenMemberProfile?.(profileId)).catch(err=>toastSafe(err?.message||'تعذر فتح الملف الشخصي'));};
  document.addEventListener('click',openProfileFromEvent,true);
  document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;openProfileFromEvent(e);},true);
  let notificationsChannel=null;
@@ -1118,7 +1118,8 @@ window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId
  // Backup click route only. The full profile implementation is registered earlier
  // as window.nedjmaOpenMemberProfile; never replace it with a reduced profile view.
  const route=e=>{
-  const origin=e.target instanceof Element?e.target:e.target?.parentElement;
+  const raw=e.target;
+  const origin=raw instanceof Element?raw:(raw?.parentElement||raw?.parentNode);
   const target=origin?.closest?.('[data-nedjma-profile-id]');
   if(!target)return;
   const open=window.nedjmaOpenMemberProfile;
