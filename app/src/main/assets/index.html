@@ -1115,44 +1115,19 @@ window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId
 </script>
 <script id="nedjma-profile-click-guard">
 (()=>{
- const client=()=>window.nedjmaData?.client;
- const current=()=>window.nedjmaData?.currentUser?.();
- const notify=(message)=>{if(typeof window.toast==='function')window.toast(message);else alert(message);};
- let request=0;
- function modal(){
-  let root=document.getElementById('nedjma-profile-click-modal');
-  if(root)return root;
-  root=document.createElement('div');root.id='nedjma-profile-click-modal';
-  root.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;padding:18px;direction:rtl;';
-  const panel=document.createElement('section');panel.style.cssText='width:min(100%,440px);max-height:85vh;overflow:auto;background:#12100c;border:1px solid #b18a45;border-radius:22px;padding:22px;text-align:center;color:#f2dfb8;box-shadow:0 18px 70px #000;';
-  root.append(panel);root.addEventListener('click',e=>{if(e.target===root)root.style.display='none';});
-  document.body.append(root);return root;
- }
- function el(tag,text){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;}
- async function open(id){
-  if(!id){notify('تعذر تحديد حساب هذا المستخدم.');return;}
-  const api=client();if(!api){notify('خدمة الحسابات لم تجهز بعد. أغلق التطبيق وافتحه مجدداً.');return;}
-  const seq=++request,root=modal(),panel=root.firstElementChild;root.style.display='flex';panel.replaceChildren();
-  const close=el('button','إغلاق ✕');close.type='button';close.style.cssText='display:block;margin-right:auto;background:#21190e;color:#f2dfb8;border:1px solid #806333;border-radius:10px;padding:9px 14px;';close.onclick=()=>{root.style.display='none';};panel.append(close,el('p','جارٍ تحميل الملف الشخصي…'));
-  try{
-   const {data,error}=await api.from('profiles').select('id,username,display_name,avatar_url,bio').eq('id',String(id)).maybeSingle();
-   if(seq!==request)return;
-   if(error)throw error;
-   if(!data)throw new Error('لم يتم العثور على الملف الشخصي لهذا الحساب.');
-   panel.replaceChildren(close);
-   const avatar=el('div');avatar.style.cssText='width:92px;height:92px;margin:16px auto;border-radius:50%;border:2px solid #c49a50;background:#241b0e;display:grid;place-items:center;overflow:hidden;color:#f3dfaa;font-size:32px;';
-   if(data.avatar_url){const img=el('img');img.src=data.avatar_url;img.alt='الصورة الشخصية';img.style.cssText='width:100%;height:100%;object-fit:cover;';avatar.append(img);}else avatar.textContent='✦';
-   panel.append(avatar,el('h2',data.display_name||data.username||'عضو نجمة'),el('p',data.username?'@'+data.username:'عضو في نجمة'));
-   if(data.bio)panel.append(el('p',data.bio));
-  }catch(error){if(seq===request){panel.replaceChildren(close,el('p','تعذر فتح الملف الشخصي: '+(error?.message||'خطأ غير معروف')));}}
- }
- window.nedjmaOpenMemberProfile=open;
+ // Backup click route only. The full profile implementation is registered earlier
+ // as window.nedjmaOpenMemberProfile; never replace it with a reduced profile view.
  const route=e=>{
   const origin=e.target instanceof Element?e.target:e.target?.parentElement;
   const target=origin?.closest?.('[data-nedjma-profile-id]');
   if(!target)return;
+  const open=window.nedjmaOpenMemberProfile;
+  if(typeof open!=='function')return;
   e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-  open(target.dataset.nedjmaProfileId);
+  Promise.resolve(open(target.dataset.nedjmaProfileId)).catch(error=>{
+   if(typeof window.toast==='function')window.toast(error?.message||'تعذر فتح الملف الشخصي');
+   else alert(error?.message||'تعذر فتح الملف الشخصي');
+  });
  };
  document.addEventListener('click',route,true);
  document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){route(e);}},true);
