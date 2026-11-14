@@ -710,21 +710,47 @@ window.nedjmaMakeProfileLink=function(element,profileId){
  element.style.pointerEvents='auto';
  return element;
 };
-// Capture-phase delegation handles profile taps before parent card/story/video handlers.
+// Unified activation for Android WebView touch/pointer, mouse and keyboard.
+let lastProfileTapId='',lastProfileTapAt=0;
 const activateProfile=e=>{
  if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
- const target=e.target instanceof Element?e.target:e.target?.parentElement;
- const link=target?.closest?.('[data-nedjma-profile-id]');
+ const path=typeof e.composedPath==='function'?e.composedPath():[];
+ let link=path.find(el=>el instanceof Element&&el.matches?.('[data-nedjma-profile-id]'));
+ if(!link){
+  const target=e.target instanceof Element?e.target:e.target?.parentElement;
+  link=target?.closest?.('[data-nedjma-profile-id]');
+ }
  if(!link)return;
+ const profileId=String(link.dataset.nedjmaProfileId||'').trim();
+ if(!profileId)return;
+ const now=Date.now();
+ if(profileId===lastProfileTapId&&now-lastProfileTapAt<550){
+  e.preventDefault();e.stopPropagation();
+  if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
+  return;
+ }
+ lastProfileTapId=profileId;lastProfileTapAt=now;
  e.preventDefault();e.stopPropagation();
  if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
  const open=window.nedjmaOpenMemberProfile;
- if(typeof open!=='function'){(window.toast||alert)('الملف الشخصي لم يجهز بعد. حاول مجدداً.');return;}
- Promise.resolve().then(()=>open(link.dataset.nedjmaProfileId)).catch(error=>{
+ if(typeof open!=='function'){
+  console.error('NEDJMA profile opener is unavailable at tap time.');
+  (window.toast||alert)('تعذر تشغيل الملف الشخصي. أعد المحاولة بعد لحظة.');
+  return;
+ }
+ try{
+  const result=open(profileId);
+  if(result&&typeof result.catch==='function')result.catch(error=>{
+   console.error('NEDJMA profile activation failed:',error);
+   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
+  });
+ }catch(error){
   console.error('NEDJMA profile activation failed:',error);
   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
- });
+ }
 };
+document.addEventListener('pointerup',activateProfile,true);
+document.addEventListener('touchend',activateProfile,{capture:true,passive:false});
 document.addEventListener('click',activateProfile,true);
 document.addEventListener('keydown',activateProfile,true);
 
