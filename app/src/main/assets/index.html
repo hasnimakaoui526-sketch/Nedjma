@@ -699,7 +699,45 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 })();</script>
 
 <script id="nedjma-live-social-layer">
-window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId)return element;const id=String(profileId);element.dataset.nedjmaProfileId=id;element.setAttribute('role','link');element.setAttribute('tabindex','0');element.setAttribute('aria-label','فتح الملف الشخصي');element.title='اضغط لفتح الملف الشخصي';element.style.cursor='pointer';element.style.pointerEvents='auto';if(element.dataset.nedjmaProfileBound!=='1'){element.dataset.nedjmaProfileBound='1';const open=ev=>{ev.preventDefault();ev.stopPropagation();const fn=window.nedjmaOpenMemberProfile;if(typeof fn!=='function'){(window.toast||alert)('ميزة الملفات الشخصية غير جاهزة، أعد المحاولة.');return;}Promise.resolve(fn(element.dataset.nedjmaProfileId)).catch(err=>(window.toast||alert)(err?.message||'تعذر فتح الملف الشخصي'));};element.addEventListener('click',open);element.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){open(ev);}});}return element;};
+window.nedjmaMakeProfileLink=function(element,profileId){
+ if(!element||profileId==null||String(profileId)==='')return element;
+ element.dataset.nedjmaProfileId=String(profileId);
+ element.setAttribute('role','link');
+ element.setAttribute('tabindex','0');
+ element.setAttribute('aria-label','فتح الملف الشخصي');
+ element.title='اضغط لفتح الملف الشخصي';
+ element.style.cursor='pointer';
+ element.style.pointerEvents='auto';
+ return element;
+};
+window.nedjmaHandleProfileActivation=function(event){
+ const path=typeof event.composedPath==='function'?event.composedPath():[];
+ let target=path.find(item=>item?.dataset?.nedjmaProfileId);
+ if(!target){
+  const raw=event.target;
+  const origin=raw?.nodeType===3?raw.parentElement:raw;
+  target=origin?.closest?.('[data-nedjma-profile-id]');
+ }
+ const profileId=target?.dataset?.nedjmaProfileId;
+ if(!profileId)return false;
+ event.preventDefault();
+ event.stopPropagation();
+ if(typeof event.stopImmediatePropagation==='function')event.stopImmediatePropagation();
+ const open=window.nedjmaOpenMemberProfile;
+ if(typeof open!=='function'){
+  (window.toast||alert)('تعذر تحميل الملف الشخصي. أعد فتح الصفحة وحاول مجدداً.');
+  return true;
+ }
+ Promise.resolve().then(()=>open(profileId)).catch(error=>{
+  console.error('NEDJMA profile open failed:',error);
+  (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
+ });
+ return true;
+};
+document.addEventListener('click',window.nedjmaHandleProfileActivation,true);
+document.addEventListener('keydown',event=>{
+ if(event.key==='Enter'||event.key===' ')window.nedjmaHandleProfileActivation(event);
+},true);
 (()=>{
  const api=()=>window.nedjmaData?.client;
  const user=()=>window.nedjmaData?.currentUser?.();
@@ -961,9 +999,7 @@ window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId
   }else{sheet.append(node('p','','هذا ملفك الشخصي'));}
  }
  window.nedjmaOpenMemberProfile=openMemberProfile;
- const openProfileFromEvent=e=>{const raw=e.target;const origin=raw instanceof Element?raw:(raw?.parentElement||raw?.parentNode);const target=origin?.closest?.('[data-nedjma-profile-id]');if(!target)return;const profileId=target.dataset?.nedjmaProfileId;if(!profileId)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();Promise.resolve(window.nedjmaOpenMemberProfile?.(profileId)).catch(err=>toastSafe(err?.message||'تعذر فتح الملف الشخصي'));};
- document.addEventListener('click',openProfileFromEvent,true);
- document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;openProfileFromEvent(e);},true);
+ // Profile activation is delegated once, before dynamic social views are rendered.
  let notificationsChannel=null;
  const notifications={
   async refreshBadge(){const {data,error}=await api().from('user_notifications').select('id,is_read').order('created_at',{ascending:false}).limit(100);if(error)throw error;const count=(data||[]).filter(x=>!x.is_read).length;const badge=document.getElementById('ned-notifications-count');if(badge){badge.textContent=count>99?'99+':String(count);badge.hidden=count===0;}return count;},
