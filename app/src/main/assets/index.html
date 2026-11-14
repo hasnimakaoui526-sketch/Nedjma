@@ -111,9 +111,9 @@ body{min-height:0;padding:0;position:fixed;inset:0}
 .ned-room-chat-divider{width:4px;height:4px;border-radius:50%;background:#d7b46a}
 .ned-room-chat-messages{flex:1;min-height:0;width:100%;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:13px;padding:18px 15px 22px;scrollbar-width:thin;scrollbar-color:#735a2d transparent}
 .ned-room-chat-messages .ned-message-wrap{width:100%;padding:0 2px}
-.ned-room-chat-messages .ned-message-wrap>div:first-child{max-width:min(88%,430px)!important;padding:12px 15px!important;border-radius:17px!important;font-size:14px!important;line-height:1.85!important;background:linear-gradient(145deg,#302515,#17130d)!important;border:1px solid #80632e88!important;box-shadow:0 5px 18px #0005}
-.ned-room-chat-messages .ned-message-wrap[style*="flex-start"]>div:first-child{border-bottom-right-radius:5px!important}
-.ned-room-chat-messages .ned-message-wrap[style*="flex-end"]>div:first-child{border-bottom-left-radius:5px!important;background:linear-gradient(145deg,#59421f,#302313)!important}
+.ned-room-chat-messages .ned-message-wrap .ned-message-bubble{max-width:min(88%,430px)!important;padding:12px 15px!important;border-radius:17px!important;font-size:14px!important;line-height:1.85!important;background:linear-gradient(145deg,#302515,#17130d)!important;border:1px solid #80632e88!important;box-shadow:0 5px 18px #0005}
+.ned-room-chat-messages .ned-message-wrap[style*="flex-start"] .ned-message-bubble{border-bottom-right-radius:5px!important}
+.ned-room-chat-messages .ned-message-wrap[style*="flex-end"] .ned-message-bubble{border-bottom-left-radius:5px!important;background:linear-gradient(145deg,#59421f,#302313)!important}
 .ned-room-composer{flex:none;width:100%;padding:12px 14px calc(14px + env(safe-area-inset-bottom));border-top:1px solid #d7b46a55;background:linear-gradient(180deg,#17130df5,#090908 80%);box-shadow:0 -12px 32px #0007}
 .ned-room-composer-label{display:flex;align-items:center;justify-content:space-between;color:#d7bd83;font-size:11px;margin:0 3px 8px}
 .ned-room-composer-label span:last-child{font-size:9px;letter-spacing:1px;color:#887044}
