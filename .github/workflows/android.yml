@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
 permissions:
-  contents: read
+  contents: write
 env:
   JAVA_VERSION: '17'
   GRADLE_VERSION: '8.9'
@@ -40,6 +40,14 @@ jobs:
           name: NEDJMA-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - name: Publish public beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta-${{ github.run_number }}
+          name: NEDJMA Beta ${{ github.run_number }}
+          prerelease: true
+          generate_release_notes: true
+          files: app/build/outputs/apk/debug/*.apk
   release:
     name: Build signed Release APK and AAB
     if: github.event_name == 'workflow_dispatch' && inputs.build_release == true
