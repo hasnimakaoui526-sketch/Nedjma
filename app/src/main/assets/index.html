@@ -948,7 +948,7 @@ document.addEventListener('click',function(e){
  const reactionMap=new Map(reactionRows.map(x=>[x.post_id,x]));
  for(const row of usableRows){
   const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
-  const v=node('video');v.src=row.media_url;v.playsInline=true;v.loop=true;v.muted=true;v.preload=players.length===0?'metadata':'none';v.setAttribute('aria-label','فيديو قصير');
+  const v=node('video');v.src=row.media_url;v.playsInline=true;v.loop=true;v.muted=false;v.preload=players.length===0?'metadata':'none';v.setAttribute('aria-label','فيديو قصير');
   v.addEventListener('click',()=>{if(v.paused)v.play().catch(()=>{});else v.pause();});slide.append(v);
   const meta=node('div','ned-video-meta');const author=node('div','ned-video-author',row.author_name||'عضو نجمة');window.nedjmaMakeProfileLink(author,row.author_id);meta.append(author);if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
   const side=node('div','ned-video-side');
@@ -1069,7 +1069,7 @@ document.addEventListener('click',function(e){
    for(const row of rows){
     const url=links.get(row.media_path);if(!url)continue;
     const slide=node('article','ned-video-slide');slide.dataset.postId=row.id;
-    const video=node('video');video.src=url;video.autoplay=true;video.playsInline=true;video.loop=true;video.muted=true;video.preload=shown===0?'auto':'metadata';video.controls=true;video.setAttribute('autoplay','');video.setAttribute('muted','');video.setAttribute('playsinline','');video.setAttribute('aria-label','فيديو قصير');video.addEventListener('click',()=>{if(video.paused)video.play().catch(()=>{});else video.pause();});slide.append(video);
+    const video=node('video');video.src=url;video.autoplay=true;video.playsInline=true;video.loop=true;video.muted=false;video.preload=shown===0?'auto':'metadata';video.controls=true;video.setAttribute('autoplay','');video.removeAttribute('muted');video.setAttribute('playsinline','');video.setAttribute('aria-label','فيديو قصير');video.addEventListener('click',()=>{if(video.paused)video.play().catch(()=>{});else video.pause();});slide.append(video);
     const meta=node('div','ned-video-meta');const author=node('div','ned-video-author',names.get(row.author_id)||'عضو نجمة');window.nedjmaMakeProfileLink(author,row.author_id);meta.append(author);if(row.body)meta.append(node('div','ned-video-caption',row.body));slide.append(meta);
     const side=node('div','ned-video-side');
     const like=node('button','ned-video-like','♡');like.type='button';like.setAttribute('aria-label','إعجاب بالفيديو');
