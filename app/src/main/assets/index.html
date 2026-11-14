@@ -1055,7 +1055,8 @@ window.nedjmaMakeProfileLink=function(element,profileId){if(!element||!profileId
   }
  }
  window.nedjmaVideosRefreshFallback=load;
- window.nedjmaVideosRefresh=load;
+ // Keep the full social-feed renderer as primary; use recovery only if it is absent.
+ if(typeof window.nedjmaVideosRefresh!=='function')window.nedjmaVideosRefresh=load;
  // Delegated binding survives delayed UI creation and reports every failure visibly.
  if(!document.documentElement.dataset.nedVideoPublishBound){
   document.documentElement.dataset.nedVideoPublishBound='1';
