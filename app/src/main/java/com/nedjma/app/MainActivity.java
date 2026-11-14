@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
         webView.setBackgroundColor(Color.rgb(10, 10, 10));
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(true);
