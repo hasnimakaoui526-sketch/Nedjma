@@ -875,7 +875,7 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
  }
  }
  window.nedjmaVideosRefresh=refreshVideos;
- document.getElementById('ned-video-publish')?.addEventListener('click',async()=>{const file=document.getElementById('ned-video-file').files?.[0],caption=document.getElementById('ned-video-caption').value.trim(),status=document.getElementById('ned-video-status');if(!file){status.textContent='اختر فيديو أولاً.';return;}if(!file.type.startsWith('video/')){status.textContent='الملف المختار ليس فيديو.';return;}const b=document.getElementById('ned-video-publish');b.disabled=true;status.textContent='جارٍ رفع الفيديو…';try{await social.createPost({body:caption,file});document.getElementById('ned-video-file').value='';document.getElementById('ned-video-caption').value='';status.textContent='تم نشر الفيديو.';document.getElementById('ned-video-upload-sheet').hidden=true;await refreshVideos();}catch(e){status.textContent=e.message;}finally{b.disabled=false;}});
+ // Publishing is handled by the resilient delegated handler below.
  const exploreInput=document.getElementById('ned-explore-search');let exploreTimer=null;exploreInput?.addEventListener('input',()=>{if(exploreTimer)clearTimeout(exploreTimer);exploreTimer=setTimeout(async()=>{const box=document.getElementById('ned-explore-results'),q=exploreInput.value.trim();if(q.length<2){box.replaceChildren();document.getElementById('searchhint').textContent='اكتب حرفين على الأقل للبحث';return;}document.getElementById('searchhint').textContent='جارٍ البحث…';try{const rows=await messaging.searchMembers(q);box.replaceChildren();if(!rows.length){box.append(node('p','anon-note','لم يتم العثور على أعضاء.'));document.getElementById('searchhint').textContent='انتهى البحث';return;}for(const x of rows){const card=node('div','card');card.style.display='flex';card.style.alignItems='center';card.style.justifyContent='space-between';card.style.gap='8px';card.append(node('b','',x.display_name||x.username||'عضو نجمة'));const actions=node('div');const follow=node('button','','متابعة');follow.className='goldbtn';follow.style.width='auto';follow.onclick=async()=>{try{await social.followUser(x.id);follow.textContent='تتابعه';follow.disabled=true;}catch(e){toastSafe(e.message)}};const dm=node('button','','رسالة');dm.className='goldbtn';dm.style.width='auto';dm.onclick=async()=>{try{const c=await messaging.getOrCreateDirect(x.id);show('messages');await openDirectChat(c.id,x.display_name||x.username);}catch(e){toastSafe(e.message)}};actions.append(follow,dm);card.append(actions);box.append(card);}document.getElementById('searchhint').textContent='نتائج البحث: '+rows.length;}catch(e){document.getElementById('searchhint').textContent=e.message;}},300);});
  const videosNav=document.querySelector('.nav button[onclick*="videos"]');if(videosNav)videosNav.addEventListener('click',()=>refreshVideos().catch(e=>toastSafe(e.message)));
  window.nedjmaSocial.refreshGateFeed=refreshGateFeed;window.nedjmaSocial.refreshConfessions=refreshConfessions;window.nedjmaSocial.refreshWhispers=refreshWhispers;window.nedjmaSocial.refreshVotes=refreshVotes;
@@ -1046,6 +1046,36 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
  }
  window.nedjmaVideosRefreshFallback=load;
  window.nedjmaVideosRefresh=load;
+ // Delegated binding survives delayed UI creation and reports every failure visibly.
+ if(!document.documentElement.dataset.nedVideoPublishBound){
+  document.documentElement.dataset.nedVideoPublishBound='1';
+  document.addEventListener('click',async e=>{
+   const b=e.target.closest('#ned-video-publish');if(!b)return;
+   e.preventDefault();
+   const file=document.getElementById('ned-video-file')?.files?.[0];
+   const caption=document.getElementById('ned-video-caption')?.value?.trim()||'';
+   const status=document.getElementById('ned-video-status');
+   const sheet=document.getElementById('ned-video-upload-sheet');
+   const say=m=>{if(status)status.textContent=m;};
+   if(!file){say('اختر فيديو من جهازك أولاً.');return;}
+   if(!/^video\\/(mp4|webm)$/i.test(file.type)){say('الصيغة غير مدعومة. اختر MP4 أو WebM.');return;}
+   if(file.size>100*1024*1024){say('حجم الفيديو يتجاوز الحد المسموح (100 ميغابايت).');return;}
+   const social=window.nedjmaSocial;
+   if(!social?.createPost){say('تعذر تشغيل خدمة النشر. أغلق التطبيق وافتحه مجدداً.');return;}
+   b.disabled=true;b.textContent='جارٍ النشر…';say('جارٍ رفع الفيديو إلى نجمة. لا تغلق هذه النافذة…');
+   try{
+    await social.createPost({body:caption,file});
+    say('تم رفع الفيديو ونشره بنجاح.');
+    const input=document.getElementById('ned-video-file');if(input)input.value='';
+    const cap=document.getElementById('ned-video-caption');if(cap)cap.value='';
+    await load();
+    if(sheet)sheet.hidden=true;
+   }catch(err){
+    console.error('NEDJMA video publish failed:',err);
+    say('فشل النشر: '+(err?.message||'خطأ غير معروف')+' — تحقق من الاتصال والحساب ثم أعد المحاولة.');
+   }finally{b.disabled=false;b.textContent='نشر الفيديو';}
+  },true);
+ }
 })();
 </script>
 </body></html>
