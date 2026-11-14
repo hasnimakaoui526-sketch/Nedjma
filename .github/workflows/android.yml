@@ -1,23 +1,82 @@
 name: NEDJMA Android build
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      build_release:
+        description: Build signed Release APK and Play Store AAB (requires signing secrets)
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
+env:
+  JAVA_VERSION: '17'
+  GRADLE_VERSION: '8.9'
 jobs:
   debug:
+    name: Build and verify Debug APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify full app assets are present
         run: test -s app/src/main/assets/index.html
       - uses: actions/setup-java@v4
-        with: {distribution: temurin, java-version: '17'}
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
-        with: {gradle-version: '8.9'}
-      - run: gradle --no-daemon clean assembleDebug
-      - uses: actions/upload-artifact@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+      - name: Build Debug APK
+        run: gradle --no-daemon clean assembleDebug
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
         with:
           name: NEDJMA-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+  release:
+    name: Build signed Release APK and AAB
+    if: github.event_name == 'workflow_dispatch' && inputs.build_release == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify full app assets are present
+        run: test -s app/src/main/assets/index.html
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+      - name: Restore Android signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || (echo 'Missing ANDROID_KEYSTORE_BASE64 secret' && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo 'Missing ANDROID_KEYSTORE_PASSWORD secret' && exit 1)
+          test -n "$KEY_ALIAS" || (echo 'Missing ANDROID_KEY_ALIAS secret' && exit 1)
+          test -n "$KEY_PASSWORD" || (echo 'Missing ANDROID_KEY_PASSWORD secret' && exit 1)
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/nedjma-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/nedjma-release.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Build signed release APK and AAB
+        run: gradle --no-daemon clean assembleRelease bundleRelease
+      - name: Upload signed release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEDJMA-release-apk-aab
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
