@@ -701,51 +701,32 @@ function ghostAuditNotice(){toast('سجل التدقيق الفعلي يحتاج
 <script id="nedjma-live-social-layer">
 window.nedjmaMakeProfileLink=function(element,profileId){
  if(!element||profileId==null||String(profileId)==='')return element;
- const id=String(profileId);
- element.dataset.nedjmaProfileId=id;
- element.dataset.nedjmaProfileBound='1';
+ element.dataset.nedjmaProfileId=String(profileId);
  element.setAttribute('role','link');
  element.setAttribute('tabindex','0');
  element.setAttribute('aria-label','فتح الملف الشخصي');
  element.title='اضغط لفتح الملف الشخصي';
  element.style.cursor='pointer';
  element.style.pointerEvents='auto';
- const activate=e=>{
-  if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
-  if(e.type==='keydown')e.preventDefault();
-  e.preventDefault();
-  e.stopPropagation();
-  if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
-  const open=window.nedjmaOpenMemberProfile;
-  if(typeof open!=='function'){(window.toast||alert)('الملف الشخصي لم يجهز بعد. حاول مجدداً.');return;}
-  Promise.resolve().then(()=>open(id)).catch(error=>{
-   console.error('NEDJMA profile open failed:',error);
-   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
-  });
- };
- element.addEventListener('click',activate);
- element.addEventListener('keydown',activate);
  return element;
 };
- // Fallback for profile links rendered as static HTML (for example owner delegation search).
- // Elements wired by nedjmaMakeProfileLink handle their own event and stop bubbling.
- const activateUnboundProfile=e=>{
-  if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
-  const target=e.target instanceof Element?e.target:e.target?.parentElement;
-  const link=target?.closest?.('[data-nedjma-profile-id]:not([data-nedjma-profile-bound])');
-  if(!link)return;
-  if(e.type==='keydown')e.preventDefault();
-  e.preventDefault();e.stopPropagation();
-  const id=link.dataset.nedjmaProfileId;
-  const open=window.nedjmaOpenMemberProfile;
-  if(typeof open!=='function'){(window.toast||alert)('الملف الشخصي لم يجهز بعد.');return;}
-  Promise.resolve(open(id)).catch(error=>{
-   console.error('NEDJMA delegated profile open failed:',error);
-   (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
-  });
- };
- document.addEventListener('click',activateUnboundProfile);
- document.addEventListener('keydown',activateUnboundProfile);
+// Capture-phase delegation handles profile taps before parent card/story/video handlers.
+const activateProfile=e=>{
+ if(e.type==='keydown'&&e.key!=='Enter'&&e.key!==' ')return;
+ const target=e.target instanceof Element?e.target:e.target?.parentElement;
+ const link=target?.closest?.('[data-nedjma-profile-id]');
+ if(!link)return;
+ e.preventDefault();e.stopPropagation();
+ if(typeof e.stopImmediatePropagation==='function')e.stopImmediatePropagation();
+ const open=window.nedjmaOpenMemberProfile;
+ if(typeof open!=='function'){(window.toast||alert)('الملف الشخصي لم يجهز بعد. حاول مجدداً.');return;}
+ Promise.resolve().then(()=>open(link.dataset.nedjmaProfileId)).catch(error=>{
+  console.error('NEDJMA profile activation failed:',error);
+  (window.toast||alert)(error?.message||'تعذر فتح الملف الشخصي');
+ });
+};
+document.addEventListener('click',activateProfile,true);
+document.addEventListener('keydown',activateProfile,true);
 
 (()=>{
  const api=()=>window.nedjmaData?.client;
